@@ -41,38 +41,37 @@ export default class App {
       throw new Error(message);
     }
 
-    if (module.__loaded) {
-      const message = `This module is already loaded.`;
-      throw new Error(message);
-    }
+    if (!module.__loaded) {
+      if (module.routes) {
+        if (typeof module.routes !== 'function') {
+          const message = `Module's routes field should be a function.`;
+          throw new Error(message);
+        }
 
-    if (module.routes) {
-      if (typeof module.routes !== 'function') {
-        const message = `Module's routes field should be a function.`;
-        throw new Error(message);
+        this._routeFns.push(module.routes);
       }
 
-      this._routeFns.push(module.routes);
-    }
+      const actions = module.actions || {};
+      this.actions = {
+        ...this.actions,
+        ...actions
+      };
 
-    const actions = module.actions || {};
-    this.actions = {
-      ...this.actions,
-      ...actions
-    };
+      if (module.load) {
+        if (typeof module.load !== 'function') {
+          const message = `module.load should be a function`;
+          throw new Error(message);
+        }
 
-    if (module.load) {
-      if (typeof module.load !== 'function') {
-        const message = `module.load should be a function`;
-        throw new Error(message);
+        // This module has no access to the actions loaded after this module.
+        const boundedActions = this._bindContext(this.actions);
+        module.load(this.context, boundedActions);
       }
 
-      // This module has no access to the actions loaded after this module.
-      const boundedActions = this._bindContext(this.actions);
-      module.load(this.context, boundedActions);
+      module.__loaded = true;
+    } else {
+      console.warn('ignoring module load - module already loaded');
     }
-
-    module.__loaded = true;
   }
 
   init() {
